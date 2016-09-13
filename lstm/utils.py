@@ -4,9 +4,10 @@ import codecs
 import numpy as np
 import theano
 
+dirname, _ = os.path.split(os.path.abspath(__file__))
 
-models_path = "./models"
-eval_path = "./evaluation"
+models_path = os.path.join(dirname, "models")
+eval_path = os.path.join(dirname, "evaluation")
 eval_temp = os.path.join(eval_path, "temp")
 eval_script = os.path.join(eval_path, "conlleval")
 
@@ -26,13 +27,20 @@ def get_name(parameters):
     return "".join(i for i in name if i not in "\/:*?<>|")
 
 
-def set_values(name, param, pretrained):
+def set_values(name, param, pretrained, ignore_size=False):
     """
     Initialize a network parameter with pretrained values.
     We check that sizes are compatible.
     """
     param_value = param.get_value()
     if pretrained.size != param_value.size:
+        if ignore_size:
+            pretrained_extended = np.random.uniform(low=-1.0, high=1.0, size=param_value.shape)
+            pretrained_extended[:len(pretrained)] = pretrained
+            param.set_value(np.reshape(
+                    pretrained_extended, param_value.shape
+                    ).astype(np.float32))
+            return
         raise Exception(
             "Size mismatch for parameter %s. Expected %i, found %i."
             % (name, param_value.size, pretrained.size)

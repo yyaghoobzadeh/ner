@@ -186,3 +186,28 @@ def augment_with_pretrained(dictionary, ext_emb_path, words):
                 dictionary[word] = 0
     word_to_id, id_to_word = create_mapping(dictionary)
     return dictionary, word_to_id, id_to_word
+
+def augment_with_new_trainset(dictionary, old_word2id):
+    """
+    Augment the dictionary with words that have a pretrained embedding.
+    If `words` is None, we add every word that has a pretrained embedding
+    to the dictionary, otherwise, we only add the words that are given by
+    `words` (typically the words in the development and test sets.)
+    """
+    
+    # We either add every word in the pretrained file,
+    # or only words given in the `words` list to which
+    # we can assign a pretrained embedding
+    new_word2id = {}
+    max_id = 0
+    for k,v in old_word2id.items():
+        new_word2id[k] = v
+        if v > max_id:
+            max_id = v
+    max_id += 1
+    for w in dictionary:
+        if w not in new_word2id:
+            new_word2id[w] = max_id
+            max_id += 1
+    id2word = {v: k for k, v in new_word2id.items()}
+    return new_word2id, id2word

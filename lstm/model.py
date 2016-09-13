@@ -21,6 +21,7 @@ class Model(object):
         Initialize the model. We either provide the parameters and a path where
         we store the models, or the location of a trained model.
         """
+        self.new_id2tag = {}
         if model_path is None:
             assert parameters and models_path
             # Create a name based on the parameters
@@ -34,8 +35,9 @@ class Model(object):
             # Create directory for the model if it does not exist
             if not os.path.exists(self.model_path):
                 os.makedirs(self.model_path)
+            else:
+                print "model exists: ", self.model_path
             # Save the parameters to disk
-            print self.model_path, self.name
             with open(self.parameters_path, 'wb') as f:
                 cPickle.dump(parameters, f)
         else:
@@ -100,14 +102,20 @@ class Model(object):
         """
         Load components values from disk.
         """
+        ignore_shape = False
         for name, param in self.components.items():
             param_path = os.path.join(self.model_path, "%s.mat" % name)
+            if not os.path.exists(param_path):
+                print "param :", param, "is not saved before to be loaded. "
+                continue
             param_values = scipy.io.loadmat(param_path)
+            if 'word_layer' in name: 
+                ignore_shape = True
             if hasattr(param, 'params'):
                 for p in param.params:
-                    set_values(p.name, p, param_values[p.name])
+                    set_values(p.name, p, param_values[p.name], ignore_size=ignore_shape)
             else:
-                set_values(name, param, param_values[name])
+                set_values(name, param, param_values[name], ignore_size=ignore_shape)
 
     def build(self,
               dropout,
@@ -130,7 +138,12 @@ class Model(object):
         # Training parameters
         n_words = len(self.id_to_word)
         n_chars = len(self.id_to_char)
-        n_tags = len(self.id_to_tag)
+        n_tags_loaded = len(self.id_to_tag)
+        n_tags = len(self.new_id2tag)
+        
+        print "n_words: ", n_words, "n_chars: ", n_chars, "n_tags_loaded: ", n_tags_loaded, "n_tags(new ones): ", n_tags
+        print self.id_to_tag
+        print self.new_id2tag
 
         # Number of capitalization features
         if cap_dim:
@@ -275,13 +288,18 @@ class Model(object):
             final_output = word_for_output
 
         # Sentence to Named Entity tags - Score
-        final_layer = HiddenLayer(word_lstm_dim, n_tags, name='final_layer',
+        final_layer_init = HiddenLayer(word_lstm_dim, n_tags_loaded, name='final_layer',
                                   activation=(None if crf else 'softmax'))
-        tags_scores = final_layer.link(final_output)
+        tags_loaded_scores = final_layer_init.link(final_output)
+        
+        print word_lstm_dim+n_tags_loaded
+        final_layer = HiddenLayer(word_lstm_dim+n_tags_loaded, n_tags, name='final_layer_new',
+                                  activation=('softmax'))
+        final_out_new = T.concatenate([final_output, tags_loaded_scores], axis=1)
+        tags_scores = final_layer.link(final_out_new)
 
         # No CRF
-        if not crf:
-            cost = T.nnet.categorical_crossentropy(tags_scores, tag_ids).mean()
+        cost = T.nnet.categorical_crossentropy(tags_scores, tag_ids).mean()
 
         # Network parameters
         params = []
@@ -306,9 +324,6 @@ class Model(object):
             params.extend(cap_layer.params)
         self.add_component(final_layer)
         params.extend(final_layer.params)
-        if crf:
-            self.add_component(transitions)
-            params.append(transitions)
         if word_bidirect:
             self.add_component(tanh_layer)
             params.extend(tanh_layer.params)
