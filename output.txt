@@ -1,0 +1,1 @@
+news__B-NEWSTYPE about__O obama__B-KEYWORDS
