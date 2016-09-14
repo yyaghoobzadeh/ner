@@ -136,6 +136,7 @@ We use Glove pretrained word embeddings with 50 dimensions to initialize the
 word embedding layer.
 We first train LSTM-NER on CoNLL 2003 dataset. 
 We use BiLSTM for words and LSTM for characters. 
+We analyze the impact of these choices in the experiments.
 
 Then, we retrain the model on the training dataset of this task using 
 the same parameters. 
@@ -150,17 +151,30 @@ Pycrfsuite \footnote{\url{https://github.com/tpeng/python-crfsuite}}.
 As we already mentioned, we divided
 the three sentence into 658 / 342 as train/dev.
 In Table 1, we show the performance of our best models on the dev data.
+The overall F1 measure is 96.67\% and this suggests that
+there is  little more one can improve on this development data.
+That could also be the reason that our proposed transfer learning 
+solution with pretrained LSTM on CoNLL data 
+works worse than the LSTM-NER that is only trained on our 
+training data.
+The reason could also be related to the domain difference between
+CoNLL and our training data.
+
+
 \begin{table}[ht]
 \begin{center}
 \begin{tabular}{l|c|c|c|c}
 \hline 
 & prec & rec & F1 & Acc\\ 
 \hline 
-CRF-NER  & 93.17 & 92.31 & 92.74 & 97.43\\ 
+CRF-NER  & 95.05 & 94.30 & 94.67 & 98.17\\ 
 \hline 
-LSTM-NER & 95.96 & 96.94 & 96.45 & 98.95\\ 
+% accuracy:  99.60%; precision:  98.02%; recall:  98.41%; FB1:  98.21
+LSTM-NER          & 98.02 & 98.41 & 98.21 & 99.60\\ 
+\hline
+LSTM-NER-TWO & 95.96 & 96.94 & 96.45 & 98.95 \\
 
-\hline 
+ 
 \end{tabular} 
 \caption{Overall results on the test set. }
 \end{center}
@@ -187,6 +201,28 @@ word     & 85.66 \\
 \label{perf}
 \end{table}
 
+
+
+\begin{table}
+\begin{center}
+\begin{tabular}{l|c}
+\hline 
+added feature & F1 \\ 
+\hline 
+rnd word emb & 98.21 \\
+% accuracy:  99.55%; precision:  98.02%; recall:  98.41%; FB1:  98.21
+random word embed+char   & 85.66 \\
+% accuracy:  99.47%; precision:  98.02%; recall:  98.28%; FB1:  98.15
+
++glove     & 85.66 \\
++char     & 85.66 \\
+
+
+\end{tabular} 
+\caption{CRF-NER feature analysis.}
+\end{center}
+\label{perf}
+\end{table}
 
 
 \bibliography{ref.bib}
