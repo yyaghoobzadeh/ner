@@ -7,11 +7,11 @@ import optparse
 import numpy as np
 from loader import prepare_sentence
 from utils import create_input, iobes_iob, zero_digits
-from model import Model
+from model_newdomain import Model_newdomain
 
 optparser = optparse.OptionParser()
 optparser.add_option(
-    "-m", "--model", default="",
+    "-m", "--model_newdomain", default="",
     help="Model location"
 )
 optparser.add_option(
@@ -33,18 +33,18 @@ assert opts.delimiter
 assert os.path.isdir(opts.model)
 assert os.path.isfile(opts.input)
 
-# Load existing model
-print "Loading model..."
-model = Model(model_path=opts.model)
+# Load existing model_newdomain
+print "Loading model_newdomain..."
+model = Model_newdomain(model_path=opts.model)
 parameters = model.parameters
 
 # Load reverse mappings
-word_to_id, char_to_id, tag_to_id = [
+word_to_id, char_to_id, tag_to_id, tag_to_id_old = [
     {v: k for k, v in x.items()}
-    for x in [model.id_to_word, model.id_to_char, model.id_to_tag]
+    for x in [model.id_to_word, model.id_to_char, model.id_to_tag, model.id_to_tag_old]
 ]
 
-# Load the model
+# Load the model_newdomain
 _, f_eval = model.build(training=False, **parameters)
 model.reload()
 

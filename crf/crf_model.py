@@ -1,11 +1,13 @@
 
-from sklearn.preprocessing import LabelBinarizer
-from sklearn.metrics import classification_report, confusion_matrix
 import pycrfsuite, nltk
 from itertools import chain
 import codecs
 import os
-eval_path = "./evaluation"
+
+dirname, _ = os.path.split(os.path.abspath(__file__))
+
+models_path = os.path.join(dirname, "models")
+eval_path = os.path.join(dirname, "evaluation")
 eval_temp = os.path.join(eval_path, "temp")
 eval_script = os.path.join(eval_path, "conlleval")
 
@@ -60,38 +62,43 @@ class CRF_NER(object):
         word = sent[i][0]
         postag = sent[i][1]
         features = [
-            'bias',
             'word.lower=' + word.lower(),
             'word[-3:]=' + word[-3:],
             'word[-2:]=' + word[-2:],
-#             'word.isupper=%s' % word.isupper(),
-#             'word.istitle=%s' % word.istitle(),
-            'word.isdigit=%s' % word.isdigit(),
             'postag=' + postag,
-            'postag[:2]=' + postag[:2],
         ]
-        if i > 0:
+        if i > 1:
+            word1 = sent[i-2][0]
+            postag1 = sent[i-2][1]
+            features.extend([
+                '-2:word.lower=' + word1.lower(),
+                '-2:postag=' + postag1,
+            ])
+
+	if i > 0:
             word1 = sent[i-1][0]
             postag1 = sent[i-1][1]
             features.extend([
                 '-1:word.lower=' + word1.lower(),
-#                 '-1:word.istitle=%s' % word1.istitle(),
-#                 '-1:word.isupper=%s' % word1.isupper(),
                 '-1:postag=' + postag1,
-                '-1:postag[:2]=' + postag1[:2],
             ])
         else:
             features.append('BOS')
-            
+        
+        if i < len(sent)-2:
+            word1 = sent[i+2][0]
+            postag1 = sent[i+2][1]
+            features.extend([
+                '+2:word.lower=' + word1.lower(),
+                '+2:postag=' + postag1,
+            ])
+
         if i < len(sent)-1:
             word1 = sent[i+1][0]
             postag1 = sent[i+1][1]
             features.extend([
                 '+1:word.lower=' + word1.lower(),
-    #             '+1:word.istitle=%s' % word1.istitle(),
-    #             '+1:word.isupper=%s' % word1.isupper(),
                 '+1:postag=' + postag1,
-                '+1:postag[:2]=' + postag1[:2],
             ])
         else:
             features.append('EOS')
@@ -119,7 +126,7 @@ class CRF_NER(object):
         self.X_test = [CRF_NER.sent2features(s) for s in test_sents]
         self.y_test = [CRF_NER.sent2labels(s) for s in test_sents]
     
-    def train(self):
+    def train(self, model_path='model1.crfsuite'):
         trainer = pycrfsuite.Trainer(verbose=False)
 
         for xseq, yseq in zip(self.X_train, self.y_train):
@@ -128,48 +135,49 @@ class CRF_NER(object):
         trainer.set_params({
             'c1': 1.0,   # coefficient for L1 penalty
             'c2': 1e-3,  # coefficient for L2 penalty
-            'max_iterations': 50,  # stop earlier
+            'max_iterations': 100,  # stop earlier
             # include transitions that are possible, but not observed
             'feature.possible_transitions': True
         })
         
         trainer.params()
-        self.model_name = 'model1.crfsuite'
-        trainer.train(self.model_name)
+        trainer.train(model_path)
         print trainer.logparser.last_iteration
     
-    def tag(self, test_sents, outpath='output.txt'):
+    def tag_eval(self, model_path, test_sents, outpath='output.txt'):
         '''
             sent example: [(u'wellness', 'JJ', u'B-SECTION'), (u'section', 'NN', u'I-SECTION'), (u'top', 'JJ', u'B-NEWSTYPE'), (u'news', 'NN', u'I-NEWSTYPE'), (u'stories', 'NNS', u'I-NEWSTYPE'), (u'from', 'IN', u'O'), (u'carroll', 'NN', u'B-PROVIDER'), (u'daily', 'JJ', u'I-PROVIDER'), (u'times', 'NNS', u'I-PROVIDER'), (u'herald', 'VBP', u'I-PROVIDER')]
         '''
         tagger = pycrfsuite.Tagger()
-        tagger.open(self.model_name)
+        tagger.open(model_path)
         mylines = []
         for sent in test_sents:
             pred_tags = tagger.tag(CRF_NER.sent2features(sent))
             for i, w in enumerate(sent):
                 mylines.append(' '.join([w[0], w[2], pred_tags[i]]))
             mylines.append('')
+        outpath = os.path.join(eval_temp, outpath+'.outputs')
+        scorespath = os.path.join(eval_temp, outpath+'.scores')
+        
         with codecs.open(outpath, 'w', 'utf8') as f:
             f.write("\n".join(mylines))
-        scorepath = outpath + '.scores.txt'
-        os.system("%s < %s > %s" % (eval_script, outpath, scorepath))
+        os.system("%s < %s > %s" % (eval_script, outpath, scorespath))
 
         # CoNLL evaluation results
-        eval_lines = [l.rstrip() for l in codecs.open(scorepath, 'r', 'utf8')]
+        eval_lines = [l.rstrip() for l in codecs.open(scorespath, 'r', 'utf8')]
         for line in eval_lines:
             print line
     
         # F1 on all entities
         print "F1 on all entities",  float(eval_lines[1].strip().split()[-1])
         
-    def evaluate(self, test_sents):
-        tagger = pycrfsuite.Tagger()
-        tagger.open(self.model_name)
-        
-        print("Predicted:", ' '.join(tagger.tag(CRF_NER.sent2features(test_sents[0]))))
-        print("Correct:  ", ' '.join(CRF_NER.sent2labels(test_sents[0])))
-        
-        y_pred = [tagger.tag(xseq) for xseq in self.X_test]
-        
-        print(CRF_NER.bio_classification_report(self.y_test, y_pred))
+#     def evaluate(self, test_sents):
+#         tagger = pycrfsuite.Tagger()
+#         tagger.open(self.model_name)
+#         
+#         print("Predicted:", ' '.join(tagger.tag(CRF_NER.sent2features(test_sents[0]))))
+#         print("Correct:  ", ' '.join(CRF_NER.sent2labels(test_sents[0])))
+#         
+#         y_pred = [tagger.tag(xseq) for xseq in self.X_test]
+#         
+#         print(CRF_NER.bio_classification_report(self.y_test, y_pred))

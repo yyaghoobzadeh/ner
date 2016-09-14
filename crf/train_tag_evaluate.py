@@ -7,19 +7,18 @@ from collections import OrderedDict
 from itertools import chain
 import itertools
 import optparse
-import os
+import os, sys
 
-from pygments.lexer import words
+import nltk
 
-from crf_ner import add_pos_tags, CRF_NER
+from crf_model import add_pos_tags, CRF_NER
 from loader import augment_with_pretrained
 from loader import update_tag_scheme, prepare_dataset
 from loader import word_mapping, char_mapping, tag_mapping
 import loader
 import numpy as np
 from utils import create_input
-from utils import models_path, evaluate, eval_script, eval_temp
-import nltk
+from utils import models_path, eval_script, eval_temp
 
 
 if __name__ == '__main__':
@@ -29,13 +28,16 @@ if __name__ == '__main__':
         "-T", "--train", default="",
         help="Train set location"
     )
+    
+    optparser.add_option(
+        "-e", "--onlyeval", default="0",
+        type="int",
+        help="only evaluate?!"
+    )
+
     optparser.add_option(
         "-d", "--dev", default="",
         help="Dev set location"
-    )
-    optparser.add_option(
-        "-t", "--test", default="",
-        help="Test set location"
     )
     optparser.add_option(
         "-s", "--tag_scheme", default="iob",
@@ -71,11 +73,10 @@ if __name__ == '__main__':
     parameters['pre_emb'] = opts.pre_emb
     parameters['cap_dim'] = opts.cap_dim
     parameters['crf'] = opts.crf == 1
+    parameters['onlyeval'] = opts.onlyeval == 1
     
     # Check parameters validity
-    assert os.path.isfile(opts.train)
     assert os.path.isfile(opts.dev)
-    assert os.path.isfile(opts.test)
     assert parameters['tag_scheme'] in ['iob', 'iobes']
 #     assert not parameters['pre_emb'] or parameters['word_dim'] > 0
 
@@ -91,22 +92,29 @@ if __name__ == '__main__':
     lower = parameters['lower']
     zeros = parameters['zeros']
     tag_scheme = parameters['tag_scheme']
-        
-    train_sents = loader.load_sentences(opts.train, lower, zeros)
+    
+    model_path = os.path.join(models_path, 'model1.crfsuite')
+    if parameters['onlyeval'] == True:
+        dev_sents = loader.load_sentences(opts.dev, lower, zeros)
+        dev_sents = add_pos_tags(dev_sents)
+        ner = CRF_NER()
+        ner.tag(model_path, dev_sents, 'dev')
+        sys.exit()
+    
+    assert os.path.isfile(opts.train)
     dev_sents = loader.load_sentences(opts.dev, lower, zeros)
-    test_sents = loader.load_sentences(opts.test, lower, zeros)
+    train_sents = loader.load_sentences(opts.train, lower, zeros)
     
     nltk.download('averaged_perceptron_tagger')
     train_sents = add_pos_tags(train_sents)
     dev_sents = add_pos_tags(dev_sents)
-    test_sents = add_pos_tags(test_sents)
-    train_sents.extend(dev_sents)
+#     train_sents.extend(dev_sents)
     
-    crf_ner_obj = CRF_NER()
-    crf_ner_obj.build_datasets(train_sents, test_sents)
-    crf_ner_obj.train()
-    crf_ner_obj.evaluate(test_sents)
-    crf_ner_obj.tag(test_sents, 'test_outputs')
+    ner = CRF_NER()
+    ner.build_datasets(train_sents, dev_sents)
+    ner.train(model_path)
+    
+    ner.tag_eval(model_path, dev_sents, 'dev')
     
     
     

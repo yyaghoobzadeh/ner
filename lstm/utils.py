@@ -14,9 +14,9 @@ eval_script = os.path.join(eval_path, "conlleval")
 
 def get_name(parameters):
     """
-    Generate a model name from its parameters.
+    Generate a model_newdomain name from its parameters.
     """
-    return 'model'
+    return 'model_newdomain'
     l = []
     for k, v in parameters.items():
         if type(v) is str and "/" in v:
@@ -205,9 +205,9 @@ def create_input(data, parameters, add_label, singletons=None):
 
 
 def evaluate(parameters, f_eval, raw_sentences, parsed_sentences,
-             id_to_tag, dictionary_tags):
+             id_to_tag, dictionary_tags, outpath=None):
     """
-    Evaluate current model using CoNLL script.
+    Evaluate current model_newdomain using CoNLL script.
     """
     n_tags = len(id_to_tag)
     predictions = []
@@ -234,8 +234,13 @@ def evaluate(parameters, f_eval, raw_sentences, parsed_sentences,
 
     # Write predictions to disk and run CoNLL script externally
     eval_id = np.random.randint(1000000, 2000000)
-    output_path = os.path.join(eval_temp, "eval.%i.output" % eval_id)
-    scores_path = os.path.join(eval_temp, "eval.%i.scores" % eval_id)
+    if outpath:
+        output_path = os.path.join(eval_temp, outpath+".output")
+        scores_path = os.path.join(eval_temp, outpath+".scores")
+    else:
+        output_path = os.path.join(eval_temp, "eval.%i.output" % eval_id)
+        scores_path = os.path.join(eval_temp, "eval.%i.scores" % eval_id)
+    
     with codecs.open(output_path, 'w', 'utf8') as f:
         f.write("\n".join(predictions))
     os.system("%s < %s > %s" % (eval_script, output_path, scores_path))

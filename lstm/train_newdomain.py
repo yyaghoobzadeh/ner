@@ -9,10 +9,12 @@ from utils import create_input
 import loader
 
 from utils import models_path, evaluate, eval_script, eval_temp
-from loader import word_mapping, char_mapping, tag_mapping
+from loader import word_mapping, char_mapping, tag_mapping,\
+    augment_with_new_trainset
 from loader import update_tag_scheme, prepare_dataset
 from loader import augment_with_pretrained
-from model import Model
+from model_newdomain import Model_newdomain
+import sys
 
 # Read parameters from command line
 optparser = optparse.OptionParser()
@@ -20,6 +22,11 @@ optparser.add_option(
     "-m", "--model", default="model1",
     help="Model name"
 )
+optparser.add_option(
+    "-e", "--onlyeval", default="0", type="int",
+    help="only evaluate?!"
+)
+
 optparser.add_option(
     "-T", "--train", default="",
     help="Train set location"
@@ -117,6 +124,7 @@ parameters['cap_dim'] = opts.cap_dim
 parameters['crf'] = opts.crf == 1
 parameters['dropout'] = opts.dropout
 parameters['lr_method'] = opts.lr_method
+parameters['onlyeval'] = opts.onlyeval == 1
 
 # Check parameters validity
 assert os.path.isfile(opts.train)
@@ -137,9 +145,21 @@ if not os.path.exists(eval_temp):
 if not os.path.exists(models_path):
     os.makedirs(models_path)
 
-# Initialize model
-model = Model(parameters=parameters, models_path=models_path)
-print "Model location: %s" % model.model_path
+# Initialize modeldomain
+
+# Load existing model
+print "Loading model..."
+model = Model_newdomain(model_path=os.path.join(models_path, opts.model))
+parameters = model.parameters
+
+# Load reverse mappings
+word_to_id, char_to_id, tag_to_id = [
+    {v: k for k, v in x.items()}
+    for x in [model.id_to_word, model.id_to_char, model.id_to_tag]
+]
+
+# model_newdomain = Model(parameters=parameters, models_path=models_path)
+# print "Model location: %s" % model_newdomain.model_path
 
 # Data parameters
 lower = parameters['lower']
@@ -156,24 +176,21 @@ update_tag_scheme(train_sentences, tag_scheme)
 update_tag_scheme(dev_sentences, tag_scheme)
 update_tag_scheme(test_sentences, tag_scheme)
 
-# Create a dictionary / mapping of words
-# If we use pretrained embeddings, we add them to the dictionary.
-if parameters['pre_emb']:
-    dico_words_train = word_mapping(train_sentences, lower)[0]
-    dico_words, word_to_id, id_to_word = augment_with_pretrained(
-        dico_words_train.copy(),
-        parameters['pre_emb'],
-        list(itertools.chain.from_iterable(
-            [[w[0] for w in s] for s in dev_sentences + test_sentences])
-        ) if not parameters['all_emb'] else None
-    )
-else:
-    dico_words, word_to_id, id_to_word = word_mapping(train_sentences, lower)
-    dico_words_train = dico_words
+# Load reverse mappings
+word_to_id, char_to_id, tag_to_id = [
+    {v: k for k, v in x.items()}
+    for x in [model.id_to_word, model.id_to_char, model.id_to_tag]
+]
+
+dico_words_train = word_mapping(train_sentences, lower)[0]
+model.word_to_id, model.id_to_word = augment_with_new_trainset(dico_words_train, word_to_id)
+word_to_id = model.word_to_id
+id_to_word = model.id_to_word
 
 # Create a dictionary and a mapping for words / POS tags / tags
-dico_chars, char_to_id, id_to_char = char_mapping(train_sentences)
+# dico_chars, char_to_id, id_to_char = char_mapping(train_sentences)
 dico_tags, tag_to_id, id_to_tag = tag_mapping(train_sentences)
+
 
 # Index data
 train_data = prepare_dataset(
@@ -191,28 +208,39 @@ print "%i / %i / %i sentences in train / dev / test." % (
 
 # Save the mappings to disk
 print 'Saving the mappings to disk...'
-model.save_mappings(id_to_word, id_to_char, id_to_tag)
+model.save_mappings(model.id_to_word, model.id_to_char, id_to_tag, model.id_to_tag)
 
-# Build the model
+# Build the model_newdomain
+model.new_id2tag = id_to_tag
 f_train, f_eval = model.build(**parameters)
 
-# Reload previous model values
+# Reload previous model_newdomain values
 if opts.reload:
-    print 'Reloading previous model...'
+    print 'Reloading previous model_newdomain...'
     model.reload()
 
 #
 # Train network
 #
-singletons = set([word_to_id[k] for k, v
-                  in dico_words_train.items() if v == 1])
+singletons = None#set([word_to_id[k] for k, v
+#                   in dico_words_train.items() if v == 1])
 n_epochs = 50  # number of epochs over the training set
 freq_eval = 1000  # evaluate on dev every freq_eval steps
 best_dev = -np.inf
 best_test = -np.inf
 count = 0
+
+print "Evaluating on test data, before starting to train..."
+test_score = evaluate(parameters, f_eval, test_sentences,
+                test_data, id_to_tag, dico_tags, outpath="init_test")
+print "Initial score on test: %.5f" % test_score
+
+if opts.onlyeval == 1:
+    sys.exit()
+
 for epoch in xrange(n_epochs):
     epoch_costs = []
+    
     print "Starting epoch %i..." % epoch
     for i, index in enumerate(np.random.permutation(len(train_data))):
         count += 1
@@ -237,3 +265,7 @@ for epoch in xrange(n_epochs):
                 best_test = test_score
                 print "New best score on test."
     print "Epoch %i done. Average cost: %f" % (epoch, np.mean(epoch_costs))
+    print "Evaluating on test data, after training finished..."
+    test_score = evaluate(parameters, f_eval, test_sentences,
+                                  test_data, id_to_tag, dico_tags, outpath="init_test")
+    print "Final score on test: %.5f" % test_score

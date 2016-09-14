@@ -31,10 +31,11 @@ def add_pos_tag(sent):
 
 if __name__ == '__main__':
     # Read parameters from command line
-    
+    model_path = os.path.join(models_path, 'model1.crfsuite')
     nltk.download('averaged_perceptron_tagger')
     tagger = pycrfsuite.Tagger()
-    tagger.open('model1.crfsuite')
+    tagger.open(model_path)
+    
     while True:
         sent = raw_input("Type a query (type \"exit\" to exit):\n")
         words = sent.rstrip().split()

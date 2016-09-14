@@ -1,0 +1,62 @@
+\documentclass{llncs}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazilian]{babel}
+\usepackage{csquotes}
+\usepackage{hyphenat}
+\hyphenation{pro-ble-ma}
+
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{array}
+
+% Better handle of numeric things.
+% Configured to French style (same 
+% as Brazilian conventions)
+\usepackage[locale=FR]{siunitx}
+
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+
+\usepackage{listings}
+
+\begin{document}
+
+\title{Named Entity Recognition in News domain: Report}
+%
+
+\author{Yadollah Yaghoobzadeh}
+%
+%
+%%%% list of authors for the TOC (use if author list has to be modified)
+%
+
+\maketitle              % typeset the title of the contribution
+
+\begin{abstract}
+I implemented two approaches to solve an NER problem in news domain:
+one deep learning based and one based on CRF. 
+
+\end{abstract}
+%
+\section{Deep Learning Based NER}
+%
+\subsection{Model description}
+For this part, I used 
+long short term memory (LSTM) network
+to extract character and word level features
+automatically. 
+My model is similar to the model in \cite{tagger}, 
+so I used their implementation\footnote{https://github.com/glample/tagger} and modified it.
+
+\subsection{Training Model}
+My implementation needs Theano 0.8.2, Python 2.7.
+
+
+
+%
+
+
+
+\end{document}

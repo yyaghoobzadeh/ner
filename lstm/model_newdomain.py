@@ -12,7 +12,7 @@ from nn import HiddenLayer, EmbeddingLayer, DropoutLayer, LSTM
 from optimization import Optimization
 
 
-class Model(object):
+class Model_newdomain(object):
     """
     Network architecture.
     """
@@ -52,18 +52,20 @@ class Model(object):
             self.reload_mappings()
         self.components = {}
 
-    def save_mappings(self, id_to_word, id_to_char, id_to_tag):
+    def save_mappings(self, id_to_word, id_to_char, id_to_tag, id_to_tag_old):
         """
         We need to save the mappings if we want to use the model later.
         """
         self.id_to_word = id_to_word
         self.id_to_char = id_to_char
         self.id_to_tag = id_to_tag
+        self.id_to_tag_old = id_to_tag_old
         with open(self.mappings_path, 'wb') as f:
             mappings = {
                 'id_to_word': self.id_to_word,
                 'id_to_char': self.id_to_char,
                 'id_to_tag': self.id_to_tag,
+                'id_to_tag_old': self.id_to_tag_old,
             }
             cPickle.dump(mappings, f)
 
@@ -76,6 +78,10 @@ class Model(object):
         self.id_to_word = mappings['id_to_word']
         self.id_to_char = mappings['id_to_char']
         self.id_to_tag = mappings['id_to_tag']
+	if 'id_to_tag_old' in mappings:
+	    self.id_to_tag_old = mappings['id_to_tag_old']
+	else:
+	    self.id_to_tag_old = self.id_to_tag
 
     def add_component(self, param):
         """
@@ -102,14 +108,20 @@ class Model(object):
         """
         Load components values from disk.
         """
+        ignore_shape = False
         for name, param in self.components.items():
             param_path = os.path.join(self.model_path, "%s.mat" % name)
+            if not os.path.exists(param_path):
+                print "param :", param, "is not saved before to be loaded. "
+                continue
             param_values = scipy.io.loadmat(param_path)
+            if 'word_layer' in name: 
+                ignore_shape = True
             if hasattr(param, 'params'):
                 for p in param.params:
-                    set_values(p.name, p, param_values[p.name])
+                    set_values(p.name, p, param_values[p.name], ignore_size=ignore_shape)
             else:
-                set_values(name, param, param_values[name])
+                set_values(name, param, param_values[name], ignore_size=ignore_shape)
 
     def build(self,
               dropout,
@@ -132,7 +144,12 @@ class Model(object):
         # Training parameters
         n_words = len(self.id_to_word)
         n_chars = len(self.id_to_char)
+        n_tags_loaded = len(self.id_to_tag_old)
         n_tags = len(self.id_to_tag)
+        
+        print "n_words: ", n_words, "n_chars: ", n_chars, "n_tags_loaded: ", n_tags_loaded, "n_tags(new ones): ", n_tags
+        print self.id_to_tag
+        print self.id_to_tag_old
 
         # Number of capitalization features
         if cap_dim:
@@ -163,50 +180,50 @@ class Model(object):
             word_layer = EmbeddingLayer(n_words, word_dim, name='word_layer')
             word_input = word_layer.link(word_ids)
             inputs.append(word_input)
-            # Initialize with pretrained embeddings
-            if pre_emb and training:
-                new_weights = word_layer.embeddings.get_value()
-                print 'Loading pretrained embeddings from %s...' % pre_emb
-                pretrained = {}
-                emb_invalid = 0
-                for i, line in enumerate(codecs.open(pre_emb, 'r', 'utf-8')):
-                    line = line.rstrip().split()
-                    if len(line) == word_dim + 1:
-                        pretrained[line[0]] = np.array(
-                            [float(x) for x in line[1:]]
-                        ).astype(np.float32)
-                    else:
-                        emb_invalid += 1
-                if emb_invalid > 0:
-                    print 'WARNING: %i invalid lines' % emb_invalid
-                c_found = 0
-                c_lower = 0
-                c_zeros = 0
-                # Lookup table initialization
-                for i in xrange(n_words):
-                    word = self.id_to_word[i]
-                    if word in pretrained:
-                        new_weights[i] = pretrained[word]
-                        c_found += 1
-                    elif word.lower() in pretrained:
-                        new_weights[i] = pretrained[word.lower()]
-                        c_lower += 1
-                    elif re.sub('\d', '0', word.lower()) in pretrained:
-                        new_weights[i] = pretrained[
-                            re.sub('\d', '0', word.lower())
-                        ]
-                        c_zeros += 1
-                word_layer.embeddings.set_value(new_weights)
-                print 'Loaded %i pretrained embeddings.' % len(pretrained)
-                print ('%i / %i (%.4f%%) words have been initialized with '
-                       'pretrained embeddings.') % (
-                            c_found + c_lower + c_zeros, n_words,
-                            100. * (c_found + c_lower + c_zeros) / n_words
-                      )
-                print ('%i found directly, %i after lowercasing, '
-                       '%i after lowercasing + zero.') % (
-                          c_found, c_lower, c_zeros
-                      )
+#             # Initialize with pretrained embeddings
+#             if pre_emb and training:
+#                 new_weights = word_layer.embeddings.get_value()
+#                 print 'Loading pretrained embeddings from %s...' % pre_emb
+#                 pretrained = {}
+#                 emb_invalid = 0
+#                 for i, line in enumerate(codecs.open(pre_emb, 'r', 'utf-8')):
+#                     line = line.rstrip().split()
+#                     if len(line) == word_dim + 1:
+#                         pretrained[line[0]] = np.array(
+#                             [float(x) for x in line[1:]]
+#                         ).astype(np.float32)
+#                     else:
+#                         emb_invalid += 1
+#                 if emb_invalid > 0:
+#                     print 'WARNING: %i invalid lines' % emb_invalid
+#                 c_found = 0
+#                 c_lower = 0
+#                 c_zeros = 0
+#                 # Lookup table initialization
+#                 for i in xrange(n_words):
+#                     word = self.id_to_word[i]
+#                     if word in pretrained:
+#                         new_weights[i] = pretrained[word]
+#                         c_found += 1
+#                     elif word.lower() in pretrained:
+#                         new_weights[i] = pretrained[word.lower()]
+#                         c_lower += 1
+#                     elif re.sub('\d', '0', word.lower()) in pretrained:
+#                         new_weights[i] = pretrained[
+#                             re.sub('\d', '0', word.lower())
+#                         ]
+#                         c_zeros += 1
+#                 word_layer.embeddings.set_value(new_weights)
+#                 print 'Loaded %i pretrained embeddings.' % len(pretrained)
+#                 print ('%i / %i (%.4f%%) words have been initialized with '
+#                        'pretrained embeddings.') % (
+#                             c_found + c_lower + c_zeros, n_words,
+#                             100. * (c_found + c_lower + c_zeros) / n_words
+#                       )
+#                 print ('%i found directly, %i after lowercasing, '
+#                        '%i after lowercasing + zero.') % (
+#                           c_found, c_lower, c_zeros
+#                       )
 
         #
         # Chars inputs
@@ -277,43 +294,18 @@ class Model(object):
             final_output = word_for_output
 
         # Sentence to Named Entity tags - Score
-        final_layer = HiddenLayer(word_lstm_dim, n_tags, name='final_layer',
+        final_layer_init = HiddenLayer(word_lstm_dim, n_tags_loaded, name='final_layer',
                                   activation=(None if crf else 'softmax'))
-        tags_scores = final_layer.link(final_output)
+        tags_loaded_scores = final_layer_init.link(final_output)
+        
+        print word_lstm_dim+n_tags_loaded
+        final_layer = HiddenLayer(word_lstm_dim+n_tags_loaded, n_tags, name='final_layer_new',
+                                  activation=('softmax'))
+        final_out_new = T.concatenate([final_output, tags_loaded_scores], axis=1)
+        tags_scores = final_layer.link(final_out_new)
 
         # No CRF
-        if not crf:
-            cost = T.nnet.categorical_crossentropy(tags_scores, tag_ids).mean()
-        # CRF
-        else:
-            transitions = shared((n_tags + 2, n_tags + 2), 'transitions')
-
-            small = -1000
-            b_s = np.array([[small] * n_tags + [0, small]]).astype(np.float32)
-            e_s = np.array([[small] * n_tags + [small, 0]]).astype(np.float32)
-            observations = T.concatenate(
-                [tags_scores, small * T.ones((s_len, 2))],
-                axis=1
-            )
-            observations = T.concatenate(
-                [b_s, observations, e_s],
-                axis=0
-            )
-
-            # Score from tags
-            real_path_score = tags_scores[T.arange(s_len), tag_ids].sum()
-
-            # Score from transitions
-            b_id = theano.shared(value=np.array([n_tags], dtype=np.int32))
-            e_id = theano.shared(value=np.array([n_tags + 1], dtype=np.int32))
-            padded_tags_ids = T.concatenate([b_id, tag_ids, e_id], axis=0)
-            real_path_score += transitions[
-                padded_tags_ids[T.arange(s_len + 1)],
-                padded_tags_ids[T.arange(s_len + 1) + 1]
-            ].sum()
-
-            all_paths_scores = forward(observations, transitions)
-            cost = - (real_path_score - all_paths_scores)
+        cost = T.nnet.categorical_crossentropy(tags_scores, tag_ids).mean()
 
         # Network parameters
         params = []
@@ -338,9 +330,6 @@ class Model(object):
             params.extend(cap_layer.params)
         self.add_component(final_layer)
         params.extend(final_layer.params)
-        if crf:
-            self.add_component(transitions)
-            params.append(transitions)
         if word_bidirect:
             self.add_component(tanh_layer)
             params.extend(tanh_layer.params)
@@ -388,13 +377,6 @@ class Model(object):
             f_eval = theano.function(
                 inputs=eval_inputs,
                 outputs=tags_scores,
-                givens=({is_train: np.cast['int32'](0)} if dropout else {})
-            )
-        else:
-            f_eval = theano.function(
-                inputs=eval_inputs,
-                outputs=forward(observations, transitions, viterbi=True,
-                                return_alpha=False, return_best_sequence=True),
                 givens=({is_train: np.cast['int32'](0)} if dropout else {})
             )
 
