@@ -1,38 +1,20 @@
-\documentclass{llncs}
 
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[brazilian]{babel}
-\usepackage{csquotes}
-\usepackage{hyphenat}
-\hyphenation{pro-ble-ma}
+\documentclass[11pt]{article}
+\usepackage{coling2016}
+\usepackage{times}
+\usepackage{url}
+\usepackage{latexsym}
 
-\usepackage{amssymb}
-\usepackage{amsmath}
-\usepackage{array}
 
-% Better handle of numeric things.
-% Configured to French style (same 
-% as Brazilian conventions)
-\usepackage[locale=FR]{siunitx}
-
-\usepackage{graphicx}
-\graphicspath{ {images/} }
-
-\usepackage{listings}
-
-\begin{document}
-
-\title{Named Entity Recognition in News domain: Report}
-%
+\title{Instructions for COLING-2016 Proceedings}
 
 \author{Yadollah Yaghoobzadeh}
-%
-%
-%%%% list of authors for the TOC (use if author list has to be modified)
-%
 
-\maketitle              % typeset the title of the contribution
+\date{}
+
+\begin{document}
+\maketitle
+
 
 \begin{abstract}
 I implemented two approaches to solve an NER problem in news domain:
@@ -40,23 +22,175 @@ one deep learning based and one based on CRF.
 
 \end{abstract}
 %
-\section{Deep Learning Based NER}
-%
-\subsection{Model description}
-For this part, I used 
+\section{Introduction}
+In this report, I first briefly explain the problem and then 
+two proposed solutions. 
+
+
+\section{Problem definition}
+
+Based on the description, the aim of this task is to extract ``entities'' from 
+sentences and categorize them into several labels.
+A  training dataset is provided as part of the task. 
+The dataset consists of sentences or phrases, 
+in which each word is annotated with IOB and four entity type tags. 
+The types are: 
+NEWSTYPE, PROVIDER, SECTION and KEYWORDs.
+The sentences seem to be the user commands for a dialog system
+requesting some kind of news (e.g., breaking, spotlight) 
+from some providers (e.g., star democrat, douglas country news) 
+about some keywords (e.g., obama, ibm) 
+in different sections 
+(e.g., wellness, health).
+
+
+\section{Solving problem}
+The training dataset consists of 1,000 sentences.
+To estimate the hyperparameters, we divide
+these sentence into 658 / 342 as train/dev.
+(Since the distribution of data seems to be similar and small improvements
+are not desirable, we did not do cross validation.)
+We propose two methods to solve the problem:
+one deep learning based method and one 
+based on linear CRF. 
+
+
+\subsection{Deep Learning Based model: LSTM-NER}
+\textbf{Model description.}
+For this part, we use
 long short term memory (LSTM) network
-to extract character and word level features
+to extract character and word level features of sentence words
 automatically. 
-My model is similar to the model in \cite{tagger}, 
-so I used their implementation\footnote{https://github.com/glample/tagger} and modified it.
+LSTM has shown to perform well on sequence labeling problems. 
+The model is similar to the model in \cite{tagger16}, 
+so we used their implementation\footnote{https://github.com/glample/tagger} and modified it.
+In more details, 
+one LSTM is going over sequence of characters in each word resulting in a 
+character-level representation of words. 
+Another LSTM is going over sequence of words, in which words are represented 
+by the concatenation of word and character level embeddings. 
+The word embeddings are either initialized randomly or by pretrained word embeddings. 
+The hidden states of LSTM are considered as contextual representation of
+words and fed into a softmax layer to output tags probabilities for each word. 
+We can also use a backward LSTM resulting in Bi-directional LSTM.
+For more details, see \newcite{tagger}.
 
-\subsection{Training Model}
-My implementation needs Theano 0.8.2, Python 2.7.
+\textbf{Transfer learning.}
+The training dataset is quite small (1,000 sentences), 
+and the variation of input data is large to be captured well.
+Therefore, we propose to do transfer learning. 
+
+The basic yet effective transfer learning that can be used is to 
+initialize the word embedding layer with pretrained 
+embeddings. 
+Word embeddings are generic representation of words trained using unsupervised methods 
+like word2vec, glove, etc. 
+
+Apart from word embedding layer, we can transfer the knowledge from 
+another NER dataset to this new one. 
+As far as we know, there is no publicly available dataset with the same tags 
+as our training data, but there is still dependencies among these tags
+and the more standard ones in other datasets like CoNLL. 
+Therefore, we propose a two step training regime. 
+First, we train our LSTM-NER model on CoNLL 2003 dataset (tags are: ORG, LOC, PER, MISC).
+Then, we modify the LSTM-NER (lets call it LSTM-NER)
+and add another softmax layer to the output of LSTM-NER
+to output the new tag-set probabilities. 
+We initialize the LSTM-NER-TWO with the parameters 
+from LSTM-NER.
+We hypothesize that especially for KEYWORDS and PROVIDER tags in the training data,
+the training on CoNLL data can really be helpful since 
+these two are more related to the tags of CoNLL.
+
+\subsection{Feature based model: CRF-NER}
+For this part, we use a CRF based model using hand made features. 
+For each word, we extract features from itself and surrounding words.
+Since in the datasets, all letters are lowercase, one of the 
+most important feature of named entities is missing. 
+So, the CRF should at least use features from POS tags, letters in the word, the word itself.
+We found these features to give reasonable results on our test set. 
+In more details, features for each position of words in the sentence are:
+\begin{itemize}
+\item 
+position word 
+\item 
+last trigram of word
+\item 
+last bigram of word
+\item 
+POS tag
+\item 
+word and POS tag of the window size of 2 around the position.
+\end{itemize}
+
+We also tried adding more features, but it hurted the performance rather than helping
+probably due to the small size of the training data. 
+
+\section{Experiments}
+\subsection{Implementations and setups}
+\textbf{LSTM-NER.}
+The implementation is in Python 2.7 with
+installed Theano 0.8.2, numpy 1.10.4., Scipy 0.17.0. 
+
+We use Glove pretrained word embeddings with 50 dimensions to initialize the 
+word embedding layer.
+We first train LSTM-NER on CoNLL 2003 dataset. 
+We use BiLSTM for words and LSTM for characters. 
+
+Then, we retrain the model on the training dataset of this task using 
+the same parameters. 
+We take the best model on dev and compare the results with different parametrization. 
+
+\textbf{CRF-NER}
+The implementation is in Python 2.7 with
+installed NLTK 3.2, numpy 1.10.4., Scipy 0.17.0. 
+Pycrfsuite \footnote{\url{https://github.com/tpeng/python-crfsuite}}.
+
+\subsection{Evaluation}
+As we already mentioned, we divided
+the three sentence into 658 / 342 as train/dev.
+In Table 1, we show the performance of our best models on the dev data.
+\begin{table}[ht]
+\begin{center}
+\begin{tabular}{l|c|c|c|c}
+\hline 
+& prec & rec & F1 & Acc\\ 
+\hline 
+CRF-NER  & 93.17 & 92.31 & 92.74 & 97.43\\ 
+\hline 
+LSTM-NER & 95.96 & 96.94 & 96.45 & 98.95\\ 
+
+\hline 
+\end{tabular} 
+\caption{Overall results on the test set. }
+\end{center}
+\label{perf}
+\end{table}
+
+\textbf{Feature analysis.}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{l|c}
+\hline 
+added feature & F1 \\ 
+\hline 
+word     & 85.66 \\
++trigram & 87.45 \\
++bigram  & 87.75 \\
++POS  & 88.28 \\
++ surrounding words & 92.4 \\
++ POS of surrounding words & 92.59
+\end{tabular} 
+\caption{CRF-NER feature analysis.}
+\end{center}
+\label{perf}
+\end{table}
 
 
 
-%
-
+\bibliography{ref.bib}
+\bibliographystyle{acl}
 
 
 \end{document}
