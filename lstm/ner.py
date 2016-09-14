@@ -7,19 +7,19 @@ import optparse
 import numpy as np
 from loader import prepare_sentence
 from utils import create_input, zero_digits
-from model_newdomain import Model
+from model import Model
 
 
 optparser = optparse.OptionParser()
 optparser.add_option(
-    "-m", "--model_newdomain", default="",
+    "-m", "--model", default="",
     help="Model location"
 )
 opts = optparser.parse_args()[0]
 assert os.path.isdir(opts.model)
 
-# Load existing model_newdomain
-print "Loading model_newdomain..."
+# Load existing model
+print "Loading model..."
 model = Model(model_path=opts.model)
 parameters = model.parameters
 
@@ -29,7 +29,7 @@ word_to_id, char_to_id, tag_to_id = [
     for x in [model.id_to_word, model.id_to_char, model.id_to_tag]
 ]
 
-# Load the model_newdomain
+# Load the model
 _, f_eval = model.build(training=False, **parameters)
 model.reload()
 

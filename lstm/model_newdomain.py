@@ -250,7 +250,7 @@ class Model_newdomain(object):
 
         # Sentence to Named Entity tags - Score
         final_layer_init = HiddenLayer(word_lstm_dim, n_tags_loaded, name='final_layer',
-                                  activation=(None if crf else 'softmax'))
+                                  activation=(None))
         tags_loaded_scores = final_layer_init.link(final_output)
         
         print word_lstm_dim+n_tags_loaded

@@ -211,7 +211,7 @@ class Model(object):
         #
         # Chars inputs
         #
-        if char_dim:
+        if char_dim > 0:
             input_dim += char_lstm_dim
             char_layer = EmbeddingLayer(n_chars, char_dim, name='char_layer')
 
@@ -244,8 +244,9 @@ class Model(object):
             inputs.append(cap_layer.link(cap_ids))
 
         # Prepare final input
-        if len(inputs) != 1:
-            inputs = T.concatenate(inputs, axis=1)
+        #if len(inputs) != 1:
+        #    inputs = T.concatenate(inputs, axis=1)
+        inputs = T.concatenate(inputs, axis=1)
 
         #
         # Dropout on final input
