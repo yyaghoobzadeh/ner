@@ -13,12 +13,17 @@ from loader import word_mapping, char_mapping, tag_mapping
 from loader import update_tag_scheme, prepare_dataset
 from loader import augment_with_pretrained
 from model import Model
+import sys
 
 # Read parameters from command line
 optparser = optparse.OptionParser()
 optparser.add_option(
     "-m", "--model", default="model1",
     help="Model name"
+)
+optparser.add_option(
+    "-e", "--onlyeval", default="0", type="int",
+    help="only evaluate?!"
 )
 optparser.add_option(
     "-T", "--train", default="",
@@ -200,6 +205,15 @@ f_train, f_eval = model.build(**parameters)
 if opts.reload:
     print 'Reloading previous model...'
     model.reload()
+
+print "Evaluating on test data, before starting to train..."
+test_score = evaluate(parameters, f_eval, test_sentences,
+                test_data, id_to_tag, dico_tags, outpath=opts.model+".test")
+print "Initial score on test: %.5f" % test_score
+
+if opts.onlyeval == 1:
+    sys.exit()
+
 
 #
 # Train network

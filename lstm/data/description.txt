@@ -1,16 +1,13 @@
-As a part of our interview process, we ask candidates to do programming questions. 
-This question tests your ability to build an entity extraction system.
+As a part of our interview process, we ask candidates to do programming questions. This question tests your ability to build an entity extraction system.
 
-In this folder is a file where the data is annotated with IOB tags for different entities. 
-We would like you to build an extraction system that can take in a sentence and extract out the entities.
+In this folder is a file where the data is annotated with IOB tags for different entities. We would like you to build an extraction system that can take in a sentence and extract out the entities.
 
 You can use the word2vec representations for those words appearing in the provided data. 
 The word vectors have dimension 300 and are taken from the google news vectors provided at 
 http://code.google.com/p/word2vec/. The vectors are given in a tab separated file with the first 
 column being the word and the next 300 columns the vector values. For some of the words in the corpus there does not exist a corresponding word vector since these words did not appear in the google news corpus.
 You will need to figure out how to handle these cases.
-If you do not wish to use the given word vectors you are free to use any resource to create your own vectors.
- Please provide the vectors and describe how they were determined.
+If you do not wish to use the given word vectors you are free to use any resource to create your own vectors. Please provide the vectors and describe how they were determined.
 
 We'd like you to use two methods to solve this problem.
 One method is a deep learning algorithm (e.g., RNN , ConvNet, etc.) and another method is with a CRF.

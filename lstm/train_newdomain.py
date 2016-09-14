@@ -224,7 +224,7 @@ if opts.reload:
 #
 singletons = None#set([word_to_id[k] for k, v
 #                   in dico_words_train.items() if v == 1])
-n_epochs = 50  # number of epochs over the training set
+n_epochs = 30  # number of epochs over the training set
 freq_eval = 1000  # evaluate on dev every freq_eval steps
 best_dev = -np.inf
 best_test = -np.inf
@@ -232,7 +232,7 @@ count = 0
 
 print "Evaluating on test data, before starting to train..."
 test_score = evaluate(parameters, f_eval, test_sentences,
-                test_data, id_to_tag, dico_tags, outpath="init_test")
+                test_data, id_to_tag, dico_tags, outpath=opts.model+".test")
 print "Initial score on test: %.5f" % test_score
 
 if opts.onlyeval == 1:

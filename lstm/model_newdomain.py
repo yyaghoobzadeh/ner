@@ -180,51 +180,6 @@ class Model_newdomain(object):
             word_layer = EmbeddingLayer(n_words, word_dim, name='word_layer')
             word_input = word_layer.link(word_ids)
             inputs.append(word_input)
-#             # Initialize with pretrained embeddings
-#             if pre_emb and training:
-#                 new_weights = word_layer.embeddings.get_value()
-#                 print 'Loading pretrained embeddings from %s...' % pre_emb
-#                 pretrained = {}
-#                 emb_invalid = 0
-#                 for i, line in enumerate(codecs.open(pre_emb, 'r', 'utf-8')):
-#                     line = line.rstrip().split()
-#                     if len(line) == word_dim + 1:
-#                         pretrained[line[0]] = np.array(
-#                             [float(x) for x in line[1:]]
-#                         ).astype(np.float32)
-#                     else:
-#                         emb_invalid += 1
-#                 if emb_invalid > 0:
-#                     print 'WARNING: %i invalid lines' % emb_invalid
-#                 c_found = 0
-#                 c_lower = 0
-#                 c_zeros = 0
-#                 # Lookup table initialization
-#                 for i in xrange(n_words):
-#                     word = self.id_to_word[i]
-#                     if word in pretrained:
-#                         new_weights[i] = pretrained[word]
-#                         c_found += 1
-#                     elif word.lower() in pretrained:
-#                         new_weights[i] = pretrained[word.lower()]
-#                         c_lower += 1
-#                     elif re.sub('\d', '0', word.lower()) in pretrained:
-#                         new_weights[i] = pretrained[
-#                             re.sub('\d', '0', word.lower())
-#                         ]
-#                         c_zeros += 1
-#                 word_layer.embeddings.set_value(new_weights)
-#                 print 'Loaded %i pretrained embeddings.' % len(pretrained)
-#                 print ('%i / %i (%.4f%%) words have been initialized with '
-#                        'pretrained embeddings.') % (
-#                             c_found + c_lower + c_zeros, n_words,
-#                             100. * (c_found + c_lower + c_zeros) / n_words
-#                       )
-#                 print ('%i found directly, %i after lowercasing, '
-#                        '%i after lowercasing + zero.') % (
-#                           c_found, c_lower, c_zeros
-#                       )
-
         #
         # Chars inputs
         #
