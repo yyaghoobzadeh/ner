@@ -133,8 +133,8 @@ class CRF_NER(object):
             trainer.append(xseq, yseq)
             
         trainer.set_params({
-            'c1': 1.0,   # coefficient for L1 penalty
-            'c2': 1e-3,  # coefficient for L2 penalty
+            'c1': 1e-2,   # coefficient for L1 penalty
+            'c2': 1e-4,  # coefficient for L2 penalty
             'max_iterations': 100,  # stop earlier
             # include transitions that are possible, but not observed
             'feature.possible_transitions': True
