@@ -206,6 +206,7 @@ if opts.reload:
     print 'Reloading previous model...'
     model.reload()
 
+print opts.model
 print "Evaluating on test data, before starting to train..."
 test_score = evaluate(parameters, f_eval, test_sentences,
                 test_data, id_to_tag, dico_tags, outpath=opts.model+".test")

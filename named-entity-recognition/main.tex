@@ -102,6 +102,7 @@ We hypothesize that especially for KEYWORDS and PROVIDER tags in the training da
 the training on CoNLL data can really be helpful since 
 these two are more related to the tags of CoNLL.
 
+We will experiment these transfer learning methods later.
 \subsection{Feature based model: CRF-NER}
 For this part, we use a CRF based model using hand made features. 
 For each word, we extract features from itself and surrounding words.
@@ -151,7 +152,7 @@ Pycrfsuite \footnote{\url{https://github.com/tpeng/python-crfsuite}}.
 As we already mentioned, we divided
 the three sentence into 658 / 342 as train/dev.
 In Table 1, we show the performance of our best models on the dev data.
-The overall F1 measure is 96.67\% and this suggests that
+The overall F1 measure is 98.21\% and this suggests that
 there is  little more one can improve on this development data.
 That could also be the reason that our proposed transfer learning 
 solution with pretrained LSTM on CoNLL data 
@@ -167,13 +168,13 @@ CoNLL and our training data.
 \hline 
 & prec & rec & F1 & Acc\\ 
 \hline 
-CRF-NER  & 95.05 & 94.30 & 94.67 & 98.17\\ 
+CRF-NER  & 95.59 & 94.96 & 95.28 & 98.30\\ 
+
 \hline 
-% accuracy:  99.60%; precision:  98.02%; recall:  98.41%; FB1:  98.21
 LSTM-NER          & 98.02 & 98.41 & 98.21 & 99.60\\ 
 \hline
 %accuracy:  99.23%; precision:  96.18%; recall:  96.95%; FB1:  96.57
-LSTM-NER-TWO & 95.96 & 96.94 & 96.45 & 98.95 \\
+LSTM-NER-TWO      & 96.18 & 96.95 & 96.57 & 99.23 \\
 
  
 \end{tabular} 
@@ -183,6 +184,8 @@ LSTM-NER-TWO & 95.96 & 96.94 & 96.45 & 98.95 \\
 \end{table}
 
 \textbf{Feature analysis.}
+In Table 2, the effects of adding each feature for CRF
+is shown. 
 
 \begin{table}
 \begin{center}
@@ -190,12 +193,12 @@ LSTM-NER-TWO & 95.96 & 96.94 & 96.45 & 98.95 \\
 \hline 
 added feature & F1 \\ 
 \hline 
-word     & 85.66 \\
-+trigram & 87.45 \\
-+bigram  & 87.75 \\
-+POS  & 88.28 \\
-+ surrounding words & 92.4 \\
-+ POS of surrounding words & 92.59
+word     & 89.56 \\
++trigram & 91.51 \\
++bigram  & 90.64 \\
++POS     & 91.64 \\
++ surrounding words & 95.28 \\
++ POS of surrounding words & 94.67
 \end{tabular} 
 \caption{CRF-NER feature analysis.}
 \end{center}
@@ -211,10 +214,8 @@ word     & 85.66 \\
 added feature & F1 \\ 
 \hline 
 rnd word emb & 98.21 \\
-% accuracy:  99.55%; precision:  98.02%; recall:  98.41%; FB1:  98.21
-random word embed+char   & 85.66 \\
-% accuracy:  99.47%; precision:  98.02%; recall:  98.28%; FB1:  98.15
-
+%accuracy:  99.55%; precision:  98.02%; recall:  98.41%; FB1:  98.21
+random word embed+char   & 98.15 \\
 +glove     & 85.66 \\
 +char     & 85.66 \\
 

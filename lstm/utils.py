@@ -234,6 +234,7 @@ def evaluate(parameters, f_eval, raw_sentences, parsed_sentences,
 
     # Write predictions to disk and run CoNLL script externally
     eval_id = np.random.randint(1000000, 2000000)
+    print outpath
     if outpath:
         output_path = os.path.join(eval_temp, outpath+".output")
         scores_path = os.path.join(eval_temp, outpath+".scores")
